@@ -1,0 +1,115 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>disable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+		<LangVersion>preview</LangVersion>
+		
+		<DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+		
+		<CopyBuildOutputToOutputDirectory>false</CopyBuildOutputToOutputDirectory>
+		<CopyOutputSymbolsToOutputDirectory>false</CopyOutputSymbolsToOutputDirectory>
+		<SkipCopyBuildProduct>true</SkipCopyBuildProduct>
+
+		<UseAppHost>false</UseAppHost>
+		<CreateDotNetHost>false</CreateDotNetHost>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<BFlatOptFlagRAW>-Ot</BFlatOptFlagRAW>
+		<BFlatOptFlag>-Ot</BFlatOptFlag>
+		<BFlatOS>windows</BFlatOS>
+		<BFlatArch>x64</BFlatArch>
+		<BFlatTarget>Exe</BFlatTarget>
+		<BFlatDefines></BFlatDefines>
+		<BFlatStdLib>Zero</BFlatStdLib>
+
+		<Deterministic>True</Deterministic>
+		<NoReflection>True</NoReflection>
+		<NoStackTrace>True</NoStackTrace>
+		<NoGlobalization>False</NoGlobalization>
+		<NoExceptionMessages>False</NoExceptionMessages>
+		<SeparatePDB>False</SeparatePDB>
+		<MStat>False</MStat>
+
+		<BFlatNoReflect>--no-reflection</BFlatNoReflect>
+		<BFlatNoStack>--no-stacktrace-data</BFlatNoStack>
+		<BFlatDet>--deterministic</BFlatDet>
+
+		<BFlatExe>bflat</BFlatExe>
+
+		<BFlatOptFlag Condition="'$(Configuration)' == 'Debug'">-O0</BFlatOptFlag>
+		<BFlatNoStack Condition="'$(Configuration)' == 'Debug'"></BFlatNoStack>
+
+		<Ext Condition="'$(BFlatOS)' == 'windows'">.exe</Ext>
+		<Ext Condition="'$(BFlatOS)' == 'uefi'">.efi</Ext>
+		<Ext Condition="'$(BFlatOS)' == 'linux'"></Ext>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<ActualRefDll>zerolib.dll</ActualRefDll>
+
+		<BFlatRefLib Condition="'$(BFLAT_BIN)' != '' and '$(ActualRefDll)' != ''">$(BFLAT_BIN)\ref\$(ActualRefDll)</BFlatRefLib>
+	</PropertyGroup>
+
+	<Target Name="ResolveBFlatPaths" BeforeTargets="BeforeBuild;BFlatNativeBuild">
+		<Warning Condition="'$(BFlatBinDir)' == ''" Text="bflat.exe not found in %PATH%. IntelliSense and Build might fail." />
+	</Target>
+
+	<ItemGroup>
+		<Reference Include="System.Runtime" Condition="'$(BFlatRefLib)' != ''">
+			<HintPath>$(BFlatRefLib)</HintPath>
+			<Private>false</Private>
+		</Reference>
+	</ItemGroup>
+
+	<Target Name="CoreCompile" />
+
+	<Target Name="GenerateLaunchSettings" BeforeTargets="BeforeBuild">
+		<PropertyGroup>
+			<ActualOutDir>$(ProjectDir)bin\$(Configuration)\$(TargetFramework)\</ActualOutDir>
+			<EscapedOutDir>$(ActualOutDir.Replace('\', '\\'))</EscapedOutDir>
+
+			<LaunchSettingsFile>$(MSBuildProjectDirectory)\Properties\launchSettings.json</LaunchSettingsFile>
+			<LaunchSettingsContent><![CDATA[{
+	"profiles": {
+		"BFlat_Native": {
+			"commandName": "Executable",
+			"executablePath": "$(EscapedOutDir)$(TargetName)$(Ext)",
+			"workingDirectory": "$(EscapedOutDir)",
+			"nativeDebugging": true
+		}
+	}
+}]]></LaunchSettingsContent>
+		</PropertyGroup>
+		<MakeDir Directories="$(MSBuildProjectDirectory)\Properties" Condition="!Exists('$(MSBuildProjectDirectory)\Properties')" />
+		<WriteLinesToFile File="$(LaunchSettingsFile)" Lines="$(LaunchSettingsContent)" Overwrite="true" WriteOnlyWhenDifferent="true" />
+	</Target>
+
+	<Target Name="BFlatNativeBuild" BeforeTargets="Build">
+		<ItemGroup>
+			<SourceFiles Include="$(ProjectDir)**\*.cs" Exclude="$(DefaultItemExcludes);$(IntermediateOutputPath)**" />
+			<BFlatReferences Include="@(ReferencePath)" />
+		</ItemGroup>
+
+		<PropertyGroup>
+			<TargetFlag>--target $(BFlatTarget)</TargetFlag>
+			<CompileArgs>@(SourceFiles->'"%(FullPath)"', ' ')</CompileArgs>
+			<RefArgs>@(BFlatReferences->'-r "%(FullPath)"', ' ')</RefArgs>
+
+			<OutputExe>"$(OutDir)$(TargetName)$(Ext)"</OutputExe>
+
+			<BFlatCmd>$(BFlatExe) build --stdlib $(BFlatStdLib) $(BFlatOptFlag) $(TargetFlag) --os $(BFlatOS) --arch $(BFlatArch) $(BFlatNoReflect) $(BFlatNoStack) $(BFlatDet) $(BFlatGlob) $(BFlatNoExMsg) $(BFlatPdb) $(BFlatMstat) $(RefArgs) -o $(OutputExe) $(CompileArgs)</BFlatCmd>
+		</PropertyGroup>
+
+		<Message Importance="high" Text="!!! BFLAT COMPILING: $(BFlatCmd)" />
+		<MakeDir Directories="$(OutDir)" />
+		<Exec Command="$(BFlatCmd)" WorkingDirectory="$(ProjectDir)" />
+	</Target>
+
+	<Target Name="_CheckForInvalidConfigurationAndPlatform" />
+</Project>

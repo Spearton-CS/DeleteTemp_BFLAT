@@ -1,0 +1,10 @@
+{
+	"profiles": {
+		"BFlat_Native": {
+			"commandName": "Executable",
+			"executablePath": "P:\\Projects\\DeleteTemp_BFLAT\\bin\\Release\\net10.0\\DeleteTemp_BFLAT.exe",
+			"workingDirectory": "P:\\Projects\\DeleteTemp_BFLAT\\bin\\Release\\net10.0\\",
+			"nativeDebugging": true
+		}
+	}
+}
